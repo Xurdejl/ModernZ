@@ -214,11 +214,13 @@ local user_opts = {
     title_mbtn_right_command = "script-binding select/select-watch-history; script-message-to modernz osc-hide",
 
     -- playlist button mouse actions
-    playlist_mbtn_left_command = "script-binding select/menu; script-message-to modernz osc-hide",
-    playlist_mbtn_right_command = "script-binding select/select-playlist; script-message-to modernz osc-hide",
+    tog_playlist_mbtn_left_command = "script-binding select/menu; script-message-to modernz osc-hide",
+    tog_playlist_mbtn_mid_command = "",
+    tog_playlist_mbtn_right_command = "script-binding select/select-playlist; script-message-to modernz osc-hide",
 
     -- volume mouse actions
     vol_ctrl_mbtn_left_command = "no-osd cycle mute",
+    vol_ctrl_mbtn_mid_command = "",
     vol_ctrl_mbtn_right_command = "script-binding select/select-audio-device; script-message-to modernz osc-hide",
     vol_ctrl_wheel_down_command = "no-osd add volume -5",
     vol_ctrl_wheel_up_command = "no-osd add volume 5",
@@ -248,6 +250,7 @@ local user_opts = {
 
     -- chapter title (below seekbar) mouse actions
     chapter_title_mbtn_left_command = "script-binding select/select-chapter; script-message-to modernz osc-hide",
+    chapter_title_mbtn_mid_command = "",
     chapter_title_mbtn_right_command = "show-text ${chapter-list} 3000",
 
     -- playlist skip buttons mouse actions
@@ -260,11 +263,14 @@ local user_opts = {
     playlist_next_mbtn_right_command = "script-binding select/select-playlist; script-message-to modernz osc-hide",
 
     -- fullscreen button mouse actions
-    fullscreen_mbtn_left_command = "cycle fullscreen",
-    fullscreen_mbtn_right_command = "cycle window-maximized",
+    tog_fullscreen_mbtn_left_command = "cycle fullscreen",
+    tog_fullscreen_mbtn_mid_command = "cycle window-maximized",
+    tog_fullscreen_mbtn_right_command = "cycle window-maximized",
 
     -- info button mouse actions
-    info_mbtn_left_command = "script-binding stats/display-page-1-toggle",
+    tog_info_mbtn_left_command = "script-binding stats/display-page-1-toggle",
+    tog_info_mbtn_mid_command = "",
+    tog_info_mbtn_right_command = "",
 }
 
 mp.observe_property("osc", "bool", function(name, value) if value == true then mp.set_property("osc", "no") end end)
@@ -2194,10 +2200,24 @@ local function osc_visible(visible)
     request_tick()
 end
 
-local function command_callback(command)
-    if command ~= "" and command ~= "ignore" then
-        return function ()
-            mp.command(command)
+local function bind_mouse_buttons(element_name)
+    for _, button in pairs({"mbtn_left", "mbtn_mid", "mbtn_right"}) do
+        local command = user_opts[element_name .. "_" .. button .. "_command"]
+
+        if command ~= "" then
+            elements[element_name].eventresponder[button .. "_up"] = function ()
+                mp.command(command)
+            end
+        end
+    end
+
+    for _, button in pairs({"wheel_down", "wheel_up"}) do
+        local command = user_opts[element_name .. "_" .. button .. "_command"]
+
+        if command and command ~= "" then
+            elements[element_name].eventresponder[button .. "_press"] = function ()
+                mp.command(command)
+            end
         end
     end
 end
@@ -2287,9 +2307,7 @@ local function osc_init()
         title = title:gsub("\n", " ")
         return title ~= "" and mp.command_native({"escape-ass", title}) or "mpv"
     end
-    ne.eventresponder["mbtn_left_up"] = command_callback(user_opts.title_mbtn_left_command)
-    ne.eventresponder["mbtn_right_up"] = command_callback(user_opts.title_mbtn_right_command)
-    ne.eventresponder["shift+mbtn_left_down"] = command_callback(user_opts.title_mbtn_mid_command)
+    bind_mouse_buttons("title")
 
     -- Chapter title (above seekbar)
     ne = new_element("chapter_title", "button")
@@ -2312,8 +2330,7 @@ local function osc_init()
 
         return string.format(user_opts.chapter_fmt, chapter_title)
     end
-    ne.eventresponder["mbtn_left_up"] = command_callback(user_opts.chapter_title_mbtn_left_command)
-    ne.eventresponder["mbtn_right_up"] = command_callback(user_opts.chapter_title_mbtn_right_command)
+    bind_mouse_buttons("chapter_title")
 
     -- playlist buttons
     -- prev
@@ -2321,18 +2338,14 @@ local function osc_init()
     ne.visible = (osc_param.playresx >= (state.is_image and 300 or 500) - nojumpoffset - noskipoffset*(nojumpoffset == 0 and 1 or 10))
     ne.content = icons.previous
     ne.enabled = (pl_pos > 1) or (loop ~= "no") or contains(user_opts.buttons_always_active, "playlist_prev")
-    ne.eventresponder["mbtn_left_up"] = command_callback(user_opts.playlist_prev_mbtn_left_command)
-    ne.eventresponder["mbtn_right_up"] = command_callback(user_opts.playlist_prev_mbtn_right_command)
-    ne.eventresponder["shift+mbtn_left_down"] = command_callback(user_opts.playlist_prev_mbtn_mid_command)
+    bind_mouse_buttons("playlist_prev")
 
     --next
     ne = new_element("playlist_next", "button")
     ne.visible = (osc_param.playresx >= (state.is_image and 300 or 500) - nojumpoffset - noskipoffset*(nojumpoffset == 0 and 1 or 10))
     ne.content = icons.next
     ne.enabled = (have_pl and (pl_pos < pl_count)) or (loop ~= "no") or contains(user_opts.buttons_always_active, "playlist_next")
-    ne.eventresponder["mbtn_left_up"] = command_callback(user_opts.playlist_next_mbtn_left_command)
-    ne.eventresponder["mbtn_right_up"] = command_callback(user_opts.playlist_next_mbtn_right_command)
-    ne.eventresponder["shift+mbtn_left_down"] = command_callback(user_opts.playlist_next_mbtn_mid_command)
+    bind_mouse_buttons("playlist_next")
 
     --play control buttons
     --play_pause
@@ -2373,7 +2386,7 @@ local function osc_init()
     ne.content = jump_icon[1]
     ne.eventresponder["mbtn_left_down"] = function () mp.commandv("seek", -jump_amount, jump_mode) end
     ne.eventresponder["mbtn_right_down"] = function () mp.commandv("seek", -jump_more_amount, jump_mode) end
-    ne.eventresponder["shift+mbtn_left_down"] = function () mp.commandv("frame-back-step") end
+    ne.eventresponder["mbtn_mid"] = function () mp.commandv("frame-back-step") end
 
     --jump_forward
     ne = new_element("jump_forward", "button")
@@ -2381,7 +2394,7 @@ local function osc_init()
     ne.content = jump_icon[2]
     ne.eventresponder["mbtn_left_down"] = function () mp.commandv("seek", jump_amount, jump_mode) end
     ne.eventresponder["mbtn_right_down"] = function () mp.commandv("seek", jump_more_amount, jump_mode) end
-    ne.eventresponder["shift+mbtn_left_down"] = function () mp.commandv("frame-step") end
+    ne.eventresponder["mbtn_mid"] = function () mp.commandv("frame-step") end
 
     --chapter_backward
     ne = new_element("chapter_backward", "button")
@@ -2389,9 +2402,7 @@ local function osc_init()
     ne.softrepeat = user_opts.chapter_softrepeat == true
     ne.content = icons.rewind
     ne.enabled = (have_ch) -- disables button when no chapters available.
-    ne.eventresponder["mbtn_left_down"] = command_callback(user_opts.chapter_prev_mbtn_left_command)
-    ne.eventresponder["mbtn_right_down"] = command_callback(user_opts.chapter_prev_mbtn_right_command)
-    ne.eventresponder["shift+mbtn_left_down"] = command_callback(user_opts.chapter_prev_mbtn_mid_command)
+    bind_mouse_buttons("chapter_backward")
     ne.eventresponder["shift+mbtn_right_down"] = function () mp.commandv("seek", -jump_more_amount, jump_mode) end
 
     --chapter_forward
@@ -2400,9 +2411,7 @@ local function osc_init()
     ne.softrepeat = user_opts.chapter_softrepeat == true
     ne.content = icons.forward
     ne.enabled = (have_ch) -- disables button when no chapters available.
-    ne.eventresponder["mbtn_left_down"] = command_callback(user_opts.chapter_next_mbtn_left_command)
-    ne.eventresponder["mbtn_right_down"] = command_callback(user_opts.chapter_next_mbtn_right_command)
-    ne.eventresponder["shift+mbtn_left_down"] = command_callback(user_opts.chapter_next_mbtn_mid_command)
+    bind_mouse_buttons("chapter_forward")
     ne.eventresponder["shift+mbtn_right_down"] = function () mp.commandv("seek", jump_more_amount, jump_mode) end
 
     update_tracklist()
@@ -2418,8 +2427,7 @@ local function osc_init()
     ne.tooltip_style = osc_styles.tooltip
     ne.tooltipF = user_opts.tooltip_hints and locale.menu or ""
     ne.nothingavailable = locale.no_playlist
-    ne.eventresponder["mbtn_left_up"] = command_callback(user_opts.playlist_mbtn_left_command)
-    ne.eventresponder["mbtn_right_up"] = command_callback(user_opts.playlist_mbtn_right_command)
+    bind_mouse_buttons("tog_playlist")
     visible_min_width = visible_min_width + (ne.enabled and 100 or 0)
 
     --audio_track
@@ -2434,11 +2442,7 @@ local function osc_init()
         return (locale.audio .. " " .. mp.get_property_number("aid", "-") .. "/" .. audio_track_count .. " [" .. prop .. "]")
     end
     ne.nothingavailable = locale.no_audio
-    ne.eventresponder["mbtn_left_up"] = command_callback(user_opts.audio_track_mbtn_left_command)
-    ne.eventresponder["mbtn_right_up"] = command_callback(user_opts.audio_track_mbtn_right_command)
-    ne.eventresponder["shift+mbtn_left_down"] = command_callback(user_opts.audio_track_mbtn_mid_command)
-    ne.eventresponder["wheel_down_press"] = command_callback(user_opts.audio_track_wheel_down_command)
-    ne.eventresponder["wheel_up_press"] = command_callback(user_opts.audio_track_wheel_up_command)
+    bind_mouse_buttons("audio_track")
     visible_min_width = visible_min_width + (ne.enabled and 100 or 0)
 
     --sub_track
@@ -2453,11 +2457,7 @@ local function osc_init()
         return (locale.subtitle .. " " .. mp.get_property_number("sid", "-") .. "/" .. sub_track_count .. " [" .. prop .. "]")
     end
     ne.nothingavailable = locale.no_subs
-    ne.eventresponder["mbtn_left_up"] = command_callback(user_opts.sub_track_mbtn_left_command)
-    ne.eventresponder["mbtn_right_up"] = command_callback(user_opts.sub_track_mbtn_right_command)
-    ne.eventresponder["shift+mbtn_left_down"] = command_callback(user_opts.sub_track_mbtn_mid_command)
-    ne.eventresponder["wheel_down_press"] = command_callback(user_opts.sub_track_wheel_down_command)
-    ne.eventresponder["wheel_up_press"] = command_callback(user_opts.sub_track_wheel_up_command)
+    bind_mouse_buttons("sub_track")
     visible_min_width = visible_min_width + (ne.enabled and 100 or 0)
 
     -- vol_ctrl
@@ -2487,10 +2487,7 @@ local function osc_init()
         volume = volume % 1 == 0 and string.format("%.0f", volume) or string.format("%.1f", volume)
         return volume
     end
-    ne.eventresponder["mbtn_left_up"] = command_callback(user_opts.vol_ctrl_mbtn_left_command)
-    ne.eventresponder["mbtn_right_up"] = command_callback(user_opts.vol_ctrl_mbtn_right_command)
-    ne.eventresponder["wheel_up_press"] = command_callback(user_opts.vol_ctrl_wheel_up_command)
-    ne.eventresponder["wheel_down_press"] = command_callback(user_opts.vol_ctrl_wheel_down_command)
+    bind_mouse_buttons("vol_ctrl")
 
     --volumebar
     local volume_max = mp.get_property_number("volume-max") > 0 and mp.get_property_number("volume-max") or 100
@@ -2522,8 +2519,14 @@ local function osc_init()
         mp.commandv("osd-msg", "set", "volume", set_volume(pos))
     end
     ne.eventresponder["reset"] = function (element) element.state.lastseek = nil end
-    ne.eventresponder["wheel_up_press"] = command_callback(user_opts.vol_ctrl_wheel_up_command)
-    ne.eventresponder["wheel_down_press"] = command_callback(user_opts.vol_ctrl_wheel_down_command)
+    ne.eventresponder["wheel_down_press"] = function ()
+        local command = user_opts["vol_ctrl_wheel_down_command"]
+        if command and command ~= "" then mp.command(command) end
+    end
+    ne.eventresponder["wheel_up_press"] = function ()
+        local command = user_opts["vol_ctrl_wheel_up_command"]
+        if command and command ~= "" then mp.command(command) end
+    end
 
     -- zoom control
     -- zoom out icon
@@ -2575,8 +2578,7 @@ local function osc_init()
     ne = new_element("tog_fullscreen", "button")
     ne.content = function () return state.fullscreen and icons.fullscreen_exit or icons.fullscreen end
     ne.visible = (osc_param.playresx >= visible_min_width)
-    ne.eventresponder["mbtn_left_up"] = command_callback(user_opts.fullscreen_mbtn_left_command)
-    ne.eventresponder["mbtn_right_up"] = command_callback(user_opts.fullscreen_mbtn_right_command)
+    bind_mouse_buttons("tog_fullscreen")
     visible_min_width = visible_min_width + (user_opts.fullscreen_button and 100 or 0)
 
     --tog_info
@@ -2585,7 +2587,7 @@ local function osc_init()
     ne.tooltip_style = osc_styles.tooltip
     ne.tooltipF = user_opts.tooltip_hints and locale.stats_info or ""
     ne.visible = (osc_param.playresx >= visible_min_width)
-    ne.eventresponder["mbtn_left_up"] = command_callback(user_opts.info_mbtn_left_command)
+    bind_mouse_buttons("tog_info")
     visible_min_width = visible_min_width + (user_opts.info_button and 100 or 0)
 
     --tog_ontop
@@ -2801,7 +2803,7 @@ local function osc_init()
         element.state.mbtnleft = true
         mp.commandv("seek", get_slider_value(element), "absolute-percent+exact")
     end
-    ne.eventresponder["shift+mbtn_left_down"] = function (element)
+    ne.eventresponder["mbtn_mid"] = function (element)
         element.state.mbtnleft = true
         mp.commandv("seek", get_slider_value(element), "absolute-percent")
     end
@@ -3543,15 +3545,15 @@ do_enable_keybindings()
 mp.set_key_bindings({
     {"mbtn_left",           function() process_event("mbtn_left", "up") end,
                             function() process_event("mbtn_left", "down")  end},
-    {"shift+mbtn_left",     function() process_event("shift+mbtn_left", "up") end,
-                            function() process_event("shift+mbtn_left", "down")  end},
+    {"mbtn_mid",            function() process_event("mbtn_mid", "up") end,
+                            function() process_event("mbtn_mid", "down")  end},
     {"mbtn_right",          function() process_event("mbtn_right", "up") end,
                             function() process_event("mbtn_right", "down")  end},
     {"shift+mbtn_right",    function(e) process_event("shift+mbtn_right", "up") end,
                             function(e) process_event("shift+mbtn_right", "down")  end},
-    -- alias to shift_mbtn_left for single-handed mouse use
-    {"mbtn_mid",            function() process_event("shift+mbtn_left", "up") end,
-                            function() process_event("shift+mbtn_left", "down")  end},
+    -- alias shift+mbtn_left to mbtn_mid for touchpads
+    {"shift+mbtn_left",     function() process_event("mbtn_mid", "up") end,
+                            function() process_event("mbtn_mid", "down")  end},
     {"wheel_up",            function() process_event("wheel_up", "press") end},
     {"wheel_down",          function() process_event("wheel_down", "press") end},
     {"mbtn_left_dbl",       "ignore"},
