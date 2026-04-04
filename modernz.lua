@@ -522,7 +522,7 @@ local function set_osc_styles()
     osc_styles = {
         osc_fade_bg = "{\\blur" .. user_opts.fade_blur_strength .. "\\bord" .. user_opts.osc_fade_strength .. "\\1c&H0&\\3c&H" .. osc_color_convert(user_opts.osc_color) .. "&}",
         window_fade_bg = "{\\blur" .. user_opts.window_fade_blur_strength .. "\\bord" .. user_opts.window_fade_strength .. "\\1c&H0&\\3c&H" .. osc_color_convert(user_opts.osc_color) .. "&}",
-        window_control = "{\\blur0\\bord0\\1c&H" .. osc_color_convert(user_opts.window_controls_color) .. "&\\3c&H0&\\fs25\\fn" .. icons.iconfont .. "}",
+        window_control = "{\\blur0\\bord0\\1c&H" .. osc_color_convert(user_opts.window_controls_color) .. "&\\fs25\\fn" .. icons.iconfont .. "}",
         window_title = "{\\blur0\\bord1\\1c&H" .. osc_color_convert(user_opts.window_title_color) .. "&\\3c&H0&\\fs".. user_opts.window_title_font_size .."\\q2\\fn" .. user_opts.font .. "}",
         title = "{\\blur0\\bord1\\1c&H" .. osc_color_convert(user_opts.title_color) .. "&\\3c&H0&\\fs".. user_opts.title_font_size .."\\q2\\fn" .. user_opts.font .. "}",
         chapter_title = "{\\blur0\\bord1\\1c&H" .. osc_color_convert(user_opts.chapter_title_color) .. "&\\3c&H0&\\fs" .. user_opts.chapter_title_font_size .. "\\fn" .. user_opts.font .. "}",
@@ -536,11 +536,11 @@ local function set_osc_styles()
         speed = "{\\blur0\\bord1\\1c&H" .. osc_color_convert(user_opts.side_buttons_color) .. "&\\3c&H0&\\fs" .. user_opts.speed_font_size .. "\\fn" .. user_opts.font .. "}",
         volumebar_bg = "{\\blur0\\bord0\\1c&H999999&}",
         volumebar_fg = "{\\blur1\\bord1\\1c&H" .. osc_color_convert(user_opts.side_buttons_color) .. "&}",
-        control_1 = "{\\blur0\\bord0\\1c&H" .. osc_color_convert(user_opts.playpause_color) .. "&\\3c&HFFFFFF&\\fs" .. playpause_size .. "\\fn" .. icons.iconfont .. "}",
-        control_2 = "{\\blur0\\bord0\\1c&H" .. osc_color_convert(user_opts.middle_buttons_color) .. "&\\3c&HFFFFFF&\\fs" .. midbuttons_size .. "\\fn" .. icons.iconfont .. "}",
-        control_3 = "{\\blur0\\bord0\\1c&H" .. osc_color_convert(user_opts.side_buttons_color) .. "&\\3c&HFFFFFF&\\fs" .. sidebuttons_size .. "\\fn" .. icons.iconfont .. "}",
+        control_1 = "{\\blur0\\bord0\\1c&H" .. osc_color_convert(user_opts.playpause_color) .. "&\\fs" .. playpause_size .. "\\fn" .. icons.iconfont .. "}",
+        control_2 = "{\\blur0\\bord0\\1c&H" .. osc_color_convert(user_opts.middle_buttons_color) .. "&\\fs" .. midbuttons_size .. "\\fn" .. icons.iconfont .. "}",
+        control_3 = "{\\blur0\\bord0\\1c&H" .. osc_color_convert(user_opts.side_buttons_color) .. "&\\fs" .. sidebuttons_size .. "\\fn" .. icons.iconfont .. "}",
         element_down = "{\\1c&H" .. osc_color_convert(user_opts.held_element_color) .. "&" .. string.format("\\fscx%s\\fscy%s", user_opts.button_held_size, user_opts.button_held_size) .. "}",
-        element_hover = "{" .. (hover_effects.color and "\\1c&H" .. osc_color_convert(user_opts.hover_effect_color) .. "&" or "") .."\\2c&HFFFFFF&" .. (hover_effects.size and string.format("\\fscx%s\\fscy%s", user_opts.button_hover_size, user_opts.button_hover_size) or "") .. "}",
+        element_hover = "{" .. (hover_effects.color and "\\1c&H" .. osc_color_convert(user_opts.hover_effect_color) .. "&" or "") .. (hover_effects.size and string.format("\\fscx%s\\fscy%s", user_opts.button_hover_size, user_opts.button_hover_size) or "") .. "}",
         hover_bg = "{\\blur0\\bord0\\1c&H" .. osc_color_convert(user_opts.hover_effect_color) .. "&}",
     }
 end
@@ -746,7 +746,7 @@ local function estimate_text_width(text, style)
 
     -- Replace digits with '0' to ensure width is perfectly stable during playback
     local measure_text = text:gsub("%d", "0")
-    local cache_key = measure_text .. (style or "")
+    local cache_key = measure_text .. style
 
     if text_width_cache[cache_key] then
         return text_width_cache[cache_key]
@@ -757,7 +757,7 @@ local function estimate_text_width(text, style)
     if tooltip_osd and tooltip_osd.update then
         tooltip_osd.res_x = osc_param.playresx
         tooltip_osd.res_y = osc_param.playresy
-        tooltip_osd.data = (style or "") .. measure_text
+        tooltip_osd.data = style .. measure_text
 
         local bounds = tooltip_osd:update()
         if bounds and bounds.x1 and bounds.x0 then
@@ -2225,7 +2225,6 @@ layouts["modern"] = function ()
         lo = add_layout(name)
         lo.geometry = {x = start_x, y = refY - (user_opts.osc_height / 2), an = 5, w = 24, h = 24}
         lo.style = osc_styles.control_3
-        lo.visible = (osc_param.playresx >= min_w - outeroffset)
         start_x = start_x + 45
     end
 
@@ -2294,7 +2293,6 @@ layouts["modern"] = function ()
         lo = add_layout(name)
         lo.geometry = {x = end_x, y = refY - (user_opts.osc_height / 2), an = 5, w = (w or 24), h = 24}
         lo.style = style or osc_styles.control_3
-        lo.visible = (osc_param.playresx >= min_w - outeroffset)
         end_x = end_x - 45
     end
 
@@ -2580,7 +2578,6 @@ layouts["modern-image"] = function ()
         lo = add_layout("playlist")
         lo.geometry = {x = 25, y = refY - (user_opts.osc_height / 2), an = 5, w = 24, h = 24}
         lo.style = osc_styles.control_3
-        lo.visible = osc_param.playresx >= 250
     end
 
     if track_nextprev_buttons then
@@ -2625,28 +2622,24 @@ layouts["modern-image"] = function ()
         lo = add_layout("fullscreen")
         lo.geometry = {x = osc_geo.w - 37, y = refY - (user_opts.osc_height / 2), an = 5, w = 24, h = 24}
         lo.style = osc_styles.control_3
-        lo.visible = (osc_param.playresx >= 250)
     end
 
     if info_button then
         lo = add_layout("info")
         lo.geometry = {x = osc_geo.w - 82 + (fullscreen_button and 0 or 45), y = refY - (user_opts.osc_height / 2), an = 5, w = 24, h = 24}
         lo.style = osc_styles.control_3
-        lo.visible = (osc_param.playresx >= 300)
     end
 
     if ontop_button then
         lo = add_layout("ontop")
         lo.geometry = {x = osc_geo.w - 127 + (info_button and 0 or 45) + (fullscreen_button and 0 or 45), y = refY - (user_opts.osc_height / 2), an = 5, w = 24, h = 24}
         lo.style = osc_styles.control_3
-        lo.visible = (osc_param.playresx >= 500)
     end
 
     if user_opts.download_button then
         lo = add_layout("download")
         lo.geometry = {x = osc_geo.w - 172 + (ontop_button and 0 or 45) + (info_button and 0 or 45) + (fullscreen_button and 0 or 45), y = refY - (user_opts.osc_height / 2), an = 5, w = 24, h = 24}
         lo.style = osc_styles.control_3
-        lo.visible = (osc_param.playresx >= 400)
     end
 end
 
@@ -3806,7 +3799,7 @@ observe_cached("window-maximized", request_init_resize)
 observe_cached("idle-active", request_tick)
 mp.observe_property("user-data/mpv/console/open", "bool", function(_, val)
     if val and user_opts.visibility == "auto" and not user_opts.showonselect then
-        -- clear pending thumbnail 
+        -- clear pending thumbnail
         if thumbfast.width ~= 0 and thumbfast.height ~= 0 then
             mp.commandv("script-message-to", "thumbfast", "clear")
         end
